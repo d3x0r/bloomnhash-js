@@ -14,8 +14,8 @@ class BitReader {
 
 	hook( storage ) {
 		if( !storages.find( s=>s===storage ) ) {
-			storage.addEncoders( [ { tag:"btr", p:bitReader, f:this.encode } ] );
-			storage.addDecoders( [ { tag:"btr", p:bitReader, f:this.decode } ] );
+			storage.addEncoders( [ { tag:"btr", p:BitReader, f:this.encode } ] );
+			storage.addDecoders( [ { tag:"btr", p:BitReader, f:this.decode } ] );
 			storages.push( storage );
 		}
 		this.storage_ = storage;
