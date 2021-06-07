@@ -10,6 +10,7 @@ class BitReader {
 		if( "number" === typeof bits ) {
 			bits = new Uint8Array( ( (bits+7)/8)|0 );
 		}
+                this.entropy = bits;
 	}
 
 	hook( storage ) {
