@@ -68,21 +68,21 @@ async function init()
 	let root = await storage.getRoot();
 	if( !root.find( "config" ) ){
 		hash = new BloomNHash(storage);
-		let root = await storage.getRoot();
-		const file = root.create( "config" );
-		const id = await hash.store(); // storing the hash 
+		let root   = await storage.getRoot();
+		const file = await root.create( "config" );
+		const id   = await hash.store(); // storing the hash 
 		file.write( id );
 	}else {
-		const file = root.open("config");
-		hash = storage.get( {id: file.read() } );
+		const file = await root.open("config");
+		hash       = await storage.get( {id: file.read() } );
 	}
 
-	
-        hash.set( "asdf", 1 );
-        const value = hash.get( "asdf" );
-	// value = 1.
-        hash.delete( "asdf" );
-		
+	const already = await hash.get( "asdf" );
+	if( !already )
+	        hash.set( "asdf", 1 );
+	else
+		console.log( "Value is already:", already );
+
 }
 
 ```
