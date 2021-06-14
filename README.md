@@ -93,4 +93,4 @@ async function init()
 - 1.0.1 
   - Refactor to classes.
   - Handle registration and revival better.
-1.0.0 - Initial Release
+- 1.0.0 - Initial Release
