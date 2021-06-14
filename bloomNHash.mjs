@@ -45,17 +45,27 @@ let blockStorage = null; // this should be the general public storage?  (can fal
 
 class hashBlock{
 	#root = null;
+	used = new BitReader( KEY_DATA_ENTRIES>>1 );
+	nextBlock = [];
+	entries = [];
+	keys = [];
+
+	set root(v) { 
+		//console.trace( "Recovering root...", this );
+		this.#root = v;
+		this.used.hook( v.storage );
+	}
+	getStorage() { return this.#root.storage }
+
 	constructor( parent, root ){
+		
         	this.#root = root;
 		var n;
-		_debug_reload && console.log( "New Hash block - should get a ROOT ------------ " );
+		_debug_reload && console.log( "New Hash block - should get a ROOT ------------ ", parent, root );
 		// hide these from being written.
 		Object.defineProperty(this, "timer", { enumerable: false, writable: true, configurable: true, value: null });
 		Object.defineProperty(this, "coalescedWrites", { enumerable: false, writable: true, configurable: false, value: [] });
 		Object.defineProperty(this, "pendingWrite", { enumerable: false, writable: true, configurable: false, value:null });
-		this.nextBlock = [];
-		this.entries = [];
-		this.keys = [];
 		if( parent )
 			this.parent = parent;
 		else
@@ -66,23 +76,13 @@ class hashBlock{
 			this.entries.push(null);
 			this.keys.push(null);
 		}
-		this.used = new BitReader( KEY_DATA_ENTRIES>>1 );
-		//console.log( "ROOT:", root.#storage );
-		this.used.hook( root.storage );
-		this.getStorage = function() { return root.storage }
-		if( "undefined" !== typeof parent && root.storage ) {
-			// only if created with a 'parent' - not when revived...
-			root.storage.put( this );  // establish as a stored object.
+		if( root ) {
+			this.used.hook( root.storage );
+			if( "undefined" !== typeof parent && root.storage ) {
+				// only if created with a 'parent' - not when revived...
+				root.storage.put( this );  // establish as a stored object.
+			}
 		}
-
-		/*
-		if( !root.root ) {
-			//_debug_reload && console.log( "Root root:", root, root.root, this );
-			//console.log( "--------- SETTING ROOT AND STORING" );
-			root.root = this;
-			root.storage.put( root );
-		}
-		*/
 	}
 
 	insertFlowerHashEntry (key,result ){
@@ -114,7 +114,7 @@ class hashBlock{
 
 		function doStore() {
 			this_.timer = null;
-			return root.storage.put( this_ ).then( (obj)=>{
+			return this_.#root.storage.put( this_ ).then( (obj)=>{
 				this_.pendingWrite = null;
 				for( let res of this_.coalescedWrites ) {
 					res.res( obj );// probably didn't care about this result.
@@ -179,7 +179,7 @@ get ( key ) {
 		return new Promise( (res,rej)=>((g.res=res),(g.rej=rej)) );
 	}
 	if( !this.root ) {
-		console.log( "No objects in hash; return 'undefined'" );
+		//console.log( "No objects in hash; return 'undefined'" );
 		return Promise.resolve( undefined );
 	}
 	getting = true;
@@ -191,6 +191,7 @@ get ( key ) {
 		if( self.root instanceof Promise ) {
 			_debug_lookup && console.log( "Root is still mapping?" );
 			return self.root.then((root)=>{
+				console.log( "!!!!!!!!!!!! Reloaded hashblock needs helP??", root );
 				root.lookupFlowerHashEntry( key, result ).then( (obj)=>{
 					_debug_lookup && console.trace( "Lookup finally resulted, and set getting = false...(and do gets)", gets, obj );
 					getting = false;
@@ -226,6 +227,7 @@ get ( key ) {
 
 		_debug_lookup && console.log( "Returning promised lookup:", key );
 		const f = ()=>{
+			console.log(" self root:", self.root.lookupFlowerHashEntry );
 			return self.root.lookupFlowerHashEntry( key, result ).then( (obj)=>{
 				_debug_lookup && console.log( "(2)Lookup finally resulted, and set getting = false...", obj );
 				getting = false;
@@ -259,7 +261,7 @@ async set( key, val ) {
 
 	if( this.root instanceof Promise ) {
 		console.log( "This root has to load still..." );
-		await blockStorage.map( this.root, {depth:0} )
+		await this.#storage.map( this.root, {depth:0} )
 	}
 	if( inserting ) {
 		let i;
@@ -303,12 +305,23 @@ delete( key ) {
 
 fromString (field,val){
 	// val ends up being sorage?
-	console.log( "String revive:", field, val );
+	//console.log( "String revive:", field, val );
 	if( !field ) {
-		console.log( "Returning proper object:", this );
+		//console.log( "Returning proper object:", this );
 		this.#storage = val;
 		return this;
-	}else return val;
+	}else{
+		if( field === "root" ) {
+			if( val instanceof Promise ) {
+				val.then( (val)=>{
+					//console.log( "Filling root with promised hash block... do I get this back?", this );
+					val.root = this;
+					return val;
+				} );
+			}
+		}
+		return val;
+	}
 }
 
 
@@ -330,22 +343,25 @@ store ( ) {
 }
 
 
-}
+} //----------------- End of BLoomNHash Class -------------------------------------
 
 function encodeHash( stringifier ){
 	const s = stringifier.stringify(this.root);
-	console.log( "Root should be a complex object?", this.root,s  );
+	//console.log( "Root should be a complex object?", this.root,s  );
 	return `{root:${s}}`;
 }
 
 function decodeHash( field, val ) {
-	console.log( "Reloading value:", field, val );
+	//console.log( "Reloading value:", field, val );
+	// when field == null, val == storage that this loaded from
 	return this.fromString(field,val);
 }
 
 BloomNHash.hook = async function(storage ) {
 	nextStorage = storage;
 	if( !storages.find( s=>s===storage ) ) {
+		BitReader.hook(storage);
+
 		storage.addEncoders( [ { tag:BloomNHash_StorageTag, p:BloomNHash, f:encodeHash } ] );
 		storage.addDecoders( [ { tag:BloomNHash_StorageTag, p:BloomNHash, f:decodeHash } ] );
 		storages.push( storage );
@@ -382,7 +398,7 @@ BloomNHash.hook = async function(storage ) {
 					if( hash.entries[curName] instanceof Promise ) {
 						_debug_lookup && console.log( "Resulting with promise to map the entry" );
 						const result = root.storage.map( hash, { depth:-1, paths:[ ["entries", curName] ] } ).then( (hash)=>{
-							_debug_lookup && console.log( "This should be the value in the entry...", key );
+							_debug_lookup && console.log( "This should be the value in the entry...", key );							
 							return hash.entries[curName];//lookupFlowerHashEntry( hash, key, result );
 						} );
 						return result;
@@ -404,6 +420,7 @@ BloomNHash.hook = async function(storage ) {
 					if( nextblock instanceof Promise ) {
 						_debug_lookup && console.log( "next block is a promise we need to load" );
 						const result = root.storage.map( hash, {depth:0, paths: [["nextBlock", hid]] } ).then( (hash)=>{
+							hash.root = this;
 							return lookupFlowerHashEntry( root,hash.nextBlock[hid], key, result );
 						} );
 						return result;
@@ -1136,9 +1153,10 @@ BloomNHash.hook = async function(storage ) {
 			if( next instanceof Promise ) {
 				return root.storage.map( next, {depth:0 } ).then( (obj)=>{
 					//console.log( "got back object:", obj === hash.nextBlock[hid] );
+					obj.root = this;
 					const reslt = insertFlowerHashEntry( root, hash.nextBlock[hid], key, result ) ;
 					//console.log( "so much ugly", reslt );
-					return insertFlowerHashEntry( root, hash.nextBlock[hid], key, result ) 
+					return reslt; 
 				} );
 			}
 			hash = next;
