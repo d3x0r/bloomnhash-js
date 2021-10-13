@@ -22,12 +22,12 @@ This implementation is async(promise based).
 |get| (string) | object | Returns a promise which resolves with the object stored in the hash at the specified string. |
 |set| (string,object) | -none- | Returns a promise which resolves when the specified object is setat the specified string.  It's just a completion event. |
 |delete| (string) | remove a reference from the tree |
-|store| () | Promise( id ) | Store returns the object storage ID of the stored hash block.  This unique identifier will need to be used to recover this hash tree.  |
+|store| () | Promise( id ) | Store returns a promise that resolves to the object storage ID of the stored hash block.  This unique identifier will need to be used to recover this hash tree.  |
 
 
 ## In memory example.
 
-This code fragment demonstrates the above method descriptions.
+This code fragment demonstrates the above method descriptions; except for `store()`.
 
 ``` js
 import {BloomNHash} from "./bloomNHash.mjs"
@@ -90,6 +90,10 @@ async function init()
 
 ## Changelog
 
+- 1.0.2
+  - Bitreader object storage was missing (added).
+  - Track relation between blocks and their root better
+  - Improve notification of multiple readers getting loading the same bloom.
 - 1.0.1 
   - Refactor to classes.
   - Handle registration and revival better.
