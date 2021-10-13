@@ -45,6 +45,9 @@ let blockStorage = null; // this should be the general public storage?  (can fal
 
 class hashBlock{
 	#root = null;
+	#rootSet = null;
+	#rootWait = new Promise( (res,rej)=>this.#rootSet = res );
+
 	used = new BitReader( KEY_DATA_ENTRIES>>1 );
 	nextBlock = [];
 	entries = [];
@@ -53,12 +56,15 @@ class hashBlock{
 	set root(v) { 
 		//console.trace( "Recovering root...", this );
 		this.#root = v;
+		if( this.#rootSet ) { this.#rootSet( v ); this.#rootSet = null; this.#rootWait = null }
+				
 		this.used.hook( v.storage );
 	}
 	getStorage() { return this.#root.storage }
 
 	constructor( parent, root ){
-		
+		//if( !root )
+		//	console.trace( "Created iwthout root?", root )		
         	this.#root = root;
 		var n;
 		_debug_reload && console.log( "New Hash block - should get a ROOT ------------ ", parent, root );
@@ -85,17 +91,20 @@ class hashBlock{
 		}
 	}
 
-	insertFlowerHashEntry (key,result ){
+	async insertFlowerHashEntry (key,result ){
+		if( !this.#root ) await this.#rootWait;
 		return insertFlowerHashEntry( this.#root, this, key, result );
 	}
          
-	lookupFlowerHashEntry ( key, result ) {
+	async lookupFlowerHashEntry ( key, result ) {
+		if( !this.#root ) await this.#rootWait;
 		return lookupFlowerHashEntry( this.#root, this, key, result );
 	}
-	DeleteFlowerHashEntry ( key ) {
+	async DeleteFlowerHashEntry ( key ) {
+		if( !this.#root ) await this.#rootWait;
 		return DeleteFlowerHashEntry( this.#root,this, key );
 	}
-	store () {
+	async store () {
 		const this_ = this;
 		let wait = null;
 		if( this.pendingWrite ) 
@@ -112,8 +121,9 @@ class hashBlock{
 		}
 		return wait;
 
-		function doStore() {
+		async function doStore() {
 			this_.timer = null;
+			if( !this_.#root ) await this_.#rootWait;
 			return this_.#root.storage.put( this_ ).then( (obj)=>{
 				this_.pendingWrite = null;
 				for( let res of this_.coalescedWrites ) {
@@ -135,18 +145,26 @@ class hashBlock{
 
 export class BloomNHash{
 	#storage = null;
-
+	#rootSet = null;
+	#rootWait = new Promise( (res,rej)=>this.#rootSet = res );
 	root = null;
+	setRoot(root) {
+		this.root= root;
+		if( this.#rootSet ) {
+			this.#rootSet( this.root );
+			this.#rootSet = null;
+		}
+		
+	}
 	get storage() {
 		return this.#storage;
 	}
 	constructor( storage ) {
-
+		
 		if( storage && !nextStorage )
 			nextStorage = storage;
 		if( !(this instanceof BloomNHash) ) return new BloomNHash();
 		_debug_reload && console.log( "CREATE NEW BLOOM -------------------------------------------__" );
-		const root = this;
 	        
 		if( blockStorage || nextStorage ) {
 			if( !this.#storage ) {
@@ -172,6 +190,7 @@ export class BloomNHash{
 
 
 get ( key ) {
+	if( "number" === typeof key ) key = '' + key;
 	if( getting ) {
 		_debug_lookup && console.log( "Getting is still set, delay." );
 		const g = { t:this, key:key, res:null, rej:null };
@@ -212,7 +231,7 @@ get ( key ) {
 				_debug_lookup && console.log( "doing an existing get(1):", g );
 				// this promise result doesn't matter.. will resolve the waiting one...
 				g.t.get( g.key ).then( (obj)=>{
-						_debug_lookup && console.log( "doing a get something", g, obj );
+						_debug_lookup && console.trace( "doing a get something", g, obj );
 						if( gets_.length ) getone( gets_ )
 						else if( gets.length ) {
 							const g = gets;
@@ -227,7 +246,7 @@ get ( key ) {
 
 		_debug_lookup && console.log( "Returning promised lookup:", key );
 		const f = ()=>{
-			console.log(" self root:", self.root.lookupFlowerHashEntry );
+			_debug_lookup && console.log(" self root:", self.root.lookupFlowerHashEntry );
 			return self.root.lookupFlowerHashEntry( key, result ).then( (obj)=>{
 				_debug_lookup && console.log( "(2)Lookup finally resulted, and set getting = false...", obj );
 				getting = false;
@@ -258,9 +277,9 @@ get ( key ) {
 }
 
 async set( key, val ) {
-
+	if( "number" === typeof key ) key = '' + key;
 	if( this.root instanceof Promise ) {
-		console.log( "This root has to load still..." );
+		//console.log( "This root has to load still...", this.root );
 		await this.#storage.map( this.root, {depth:0} )
 	}
 	if( inserting ) {
@@ -269,11 +288,10 @@ async set( key, val ) {
 		await new Promise( (res,rej)=>((i.res=res),(i.rej=rej)));
 	}
 	inserting = true;
-	if( "number" === typeof key ) key = '' + key;
 	const result = {};
 
 	if( !this.root ) {
-		this.root = new hashBlock(null, this);
+		this.setRoot( new hashBlock(null, this) );
 		this.store();
 		//this.#storage.put( this.root );
 	}
@@ -311,11 +329,12 @@ fromString (field,val){
 		this.#storage = val;
 		return this;
 	}else{
+		const _this = this;
 		if( field === "root" ) {
 			if( val instanceof Promise ) {
 				val.then( (val)=>{
-					//console.log( "Filling root with promised hash block... do I get this back?", this );
-					val.root = this;
+					//console.log( "Filling root with promised hash block... do I get this back?", _this, val );
+					val.root = _this;
 					return val;
 				} );
 			}
@@ -397,6 +416,7 @@ BloomNHash.hook = async function(storage ) {
 					result.hash = hash;
 					if( hash.entries[curName] instanceof Promise ) {
 						_debug_lookup && console.log( "Resulting with promise to map the entry" );
+					if( !root ) console.trace( "Why is root missing?" );
 						const result = root.storage.map( hash, { depth:-1, paths:[ ["entries", curName] ] } ).then( (hash)=>{
 							_debug_lookup && console.log( "This should be the value in the entry...", key );							
 							return hash.entries[curName];//lookupFlowerHashEntry( hash, key, result );
@@ -410,17 +430,17 @@ BloomNHash.hook = async function(storage ) {
 				if( d > 0 ) curName |= curMask;
 				curMask >>= 1;
 			}
-			_debug_lookup && console.log( "failed to find in hash...", key );
+			_debug_lookup && console.log( "failed to find in hash...", key, hash );
 			{
 				const hid = key.codePointAt(0) & HASH_MASK;
 				// follow converted hash blocks...
 				const nextblock = hash.nextBlock[hid];
-				if( nextblock ) {			
+				if( nextblock ) {								
 					if( hash.parent ) key = key.substr(1);
 					if( nextblock instanceof Promise ) {
 						_debug_lookup && console.log( "next block is a promise we need to load" );
 						const result = root.storage.map( hash, {depth:0, paths: [["nextBlock", hid]] } ).then( (hash)=>{
-							hash.root = this;
+							hash.root = root;
 							return lookupFlowerHashEntry( root,hash.nextBlock[hid], key, result );
 						} );
 						return result;
@@ -1153,7 +1173,7 @@ BloomNHash.hook = async function(storage ) {
 			if( next instanceof Promise ) {
 				return root.storage.map( next, {depth:0 } ).then( (obj)=>{
 					//console.log( "got back object:", obj === hash.nextBlock[hid] );
-					obj.root = this;
+					obj.root = root;
 					const reslt = insertFlowerHashEntry( root, hash.nextBlock[hid], key, result ) ;
 					//console.log( "so much ugly", reslt );
 					return reslt; 

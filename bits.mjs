@@ -76,5 +76,31 @@ class BitReader {
 
 }
 
+function encode( stringifier ){
+	return `{e:${stringifier.stringify(this.entropy)}}`;
+}
+function decode(field,val){
+	if( field === "e" ) this.entropy = val;
+	//if( field === "a" ) this.available = val;
+	//if( field === "u" ) this.used = val;
+	if( field )
+		return undefined;
+	else {
+		// val is storage instance
+	}
+	return this;
+}
+
+
+BitReader.hook = function( storage ){
+	//console.log( "Encode decode works..." );
+	if( !storages.find( s=>s===storage ) ) {
+		//console.log( "Hooked into storage for bitreader..." );
+		storage.addEncoders( [ { tag:"btr", p:BitReader, f:encode } ] );
+		storage.addDecoders( [ { tag:"btr", p:BitReader, f:decode } ] );
+		storages.push( storage );
+	}
+		
+};
 //module.exports = exports = bitReader;
 export {BitReader};
