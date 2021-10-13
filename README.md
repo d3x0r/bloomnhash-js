@@ -51,8 +51,11 @@ This demonstrates hooking into storage; the fragments of the hash will automatic
 `get` and `set` methods load externally stored entries sparsely.
 
 A more complete example would demonstrate storing the object that is set in the hash map.  Objects that have
-themselves been saved (or loaded) in object storage will have remote references stored in the hash blockks, and 
+themselves been saved (or loaded) in object storage will have remote references stored in the hash blocks, and 
 will refer to the external object instead.
+
+`store()` operations are grouped so the file representing the hash and hash blocks themselves don't have to be written as often.  A hold-off delay is used,
+that each store pushes the timer forward a little, so a certain period of inactivity has to happen before flushing to physical or network storage.
 
 ``` js
 import {sack} from "sack.vfs"
