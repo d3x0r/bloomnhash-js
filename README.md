@@ -92,12 +92,11 @@ async function init()
 
 
 ## Changelog
-
-- 1.0.2
+- 1.0.2(in progress)
+- 1.0.1
   - Bitreader object storage was missing (added).
   - Track relation between blocks and their root better
   - Improve notification of multiple readers getting loading the same bloom.
-- 1.0.1 
   - Refactor to classes.
   - Handle registration and revival better.
 - 1.0.0 - Initial Release
