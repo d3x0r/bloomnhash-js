@@ -93,12 +93,12 @@ class hashBlock{
 
 	async insertFlowerHashEntry (key,result ){
 		if( !this.#root ) await this.#rootWait;
-		return insertFlowerHashEntry( this.#root, this, key, result );
+		return insertFlowerHashEntry( this.#root, this, key, result, this.#root.caseInsensitive );
 	}
          
-	async lookupFlowerHashEntry ( key, result ) {
+	async lookupFlowerHashEntry ( key, result, ignoreCase ) {
 		if( !this.#root ) await this.#rootWait;
-		return lookupFlowerHashEntry( this.#root, this, key, result );
+		return lookupFlowerHashEntry( this.#root, this, key, result, this.#root.caseInsensitive );
 	}
 	async DeleteFlowerHashEntry ( key ) {
 		if( !this.#root ) await this.#rootWait;
@@ -147,6 +147,7 @@ export class BloomNHash{
 	#storage = null;
 	#rootSet = null;
 	#rootWait = new Promise( (res,rej)=>this.#rootSet = res );
+	#caseInsensitive = false;
 	root = null;
 	setRoot(root) {
 		this.root= root;
@@ -188,6 +189,12 @@ export class BloomNHash{
 		
 	} // -------------- end of BlooMNHash constructor
 
+set caseInsensitive(val) {
+	this.#caseInsensitive = val;
+}
+get caseInsensitive() {
+	return this.#caseInsensitive;
+}
 
 get ( key ) {
 	if( "number" === typeof key ) key = '' + key;
@@ -389,10 +396,10 @@ BloomNHash.hook = async function(storage ) {
 
 
 	// returns pointr to user data value
-	function lookupFlowerHashEntry( root, hash, key, result ) {
+	function lookupFlowerHashEntry( root, hash, key, result, ignoreCase ) {
 		_debug_lookup && console.log( "Actually doing lookup; otherwise how did it resolve already?", key );
 		if( "number" === typeof key ) 
-			key = '' + key;
+			throw new Error( "Invalid key type:"+typeof(key)+":"+key );//key = '' + key;
 		if( !key ) {
 			console.log( "null key:", key );
 			result.hash = null;
@@ -410,7 +417,10 @@ BloomNHash.hook = async function(storage ) {
 				if(!entkey)  break; // no more entries to check.
 				// sort first by key length... (really only compare same-length keys)
 				let d = key.length - entkey.length;
-				if( ( d == 0 ) && ( d = key.localeCompare(entkey ) ) == 0 ) {
+				if( ( d == 0 ) 
+					&& (!ignoreCase && ( d = key.localeCompare(entkey ) == 0 ) )
+					&& ( ignoreCase && ( d = key.localeCompare(entkey, "en", { sensitivity:'base'} ) == 0 ) )
+				  ) {
 					result.entryIndex = curName;
 					result.entryMask = curMask;
 					result.hash = hash;
@@ -441,7 +451,7 @@ BloomNHash.hook = async function(storage ) {
 						_debug_lookup && console.log( "next block is a promise we need to load" );
 						const result = root.storage.map( hash, {depth:0, paths: [["nextBlock", hid]] } ).then( (hash)=>{
 							hash.root = root;
-							return lookupFlowerHashEntry( root,hash.nextBlock[hid], key, result );
+							return lookupFlowerHashEntry( root,hash.nextBlock[hid], key, result, ignoreCase );
 						} );
 						return result;
 					} 
@@ -660,7 +670,7 @@ BloomNHash.hook = async function(storage ) {
 					if( prior.length > hash.keys.length ) {
 						debugger;
 					}
-					if( prior.localeCompare( hash.keys[n]  ) > 0 ) {
+					if( prior.localeCompare( hash.keys[n] ) > 0 ) {
 						console.log( "Entry Out of order:%d", n );
 						debugger;
 					}
@@ -750,7 +760,7 @@ BloomNHash.hook = async function(storage ) {
 
 	function insertFlowerHashEntry( root, hash
 		, key
-		, result
+		, result, ignoreCase
 	) {
 		let entryIndex = ROOT_ENTRY_INDEX;
 		let entryMask = ROOT_ENTRY_MASK; // index of my zero.
@@ -1174,7 +1184,7 @@ BloomNHash.hook = async function(storage ) {
 				return root.storage.map( next, {depth:0 } ).then( (obj)=>{
 					//console.log( "got back object:", obj === hash.nextBlock[hid] );
 					obj.root = root;
-					const reslt = insertFlowerHashEntry( root, hash.nextBlock[hid], key, result ) ;
+					const reslt = insertFlowerHashEntry( root, hash.nextBlock[hid], key, result, ignoreCase ) ;
 					//console.log( "so much ugly", reslt );
 					return reslt; 
 				} );
@@ -1263,7 +1273,7 @@ BloomNHash.hook = async function(storage ) {
 	function DeleteFlowerHashEntry( root, hash, key )
 	{
 		const resultEx = {};
-		const t = lookupFlowerHashEntry( root,hash.hash, key, resultEx );
+		const t = lookupFlowerHashEntry( root, hash.hash, key, resultEx, root.caseInsensitive );
 		if( t ) {
 			deleteFlowerHashEntry( hash.hash, resultEx.entryIndex, resultEx.entryMask );
 		}
@@ -1321,7 +1331,7 @@ BloomNHash.hook = async function(storage ) {
 						if( ( name.codePointAt(0) & HASH_MASK ) == imax ) {
 							// these get promises created and resulted, but noone cares about them.
 							// the new block is a leaf, and IS loaded.
-							insertFlowerHashEntry( root, newHash, ( !hash.parent ) ? name : name.substr(1)  );
+							insertFlowerHashEntry( root, newHash, ( !hash.parent ) ? name : name.substr(1), root.caseInsensitive  );
 							ptr[0] = hash.entries[f].stored_data;
 							// don't have to load records which get deleted by key value
 							deleteFlowerHashEntry( hash, f, 1 << getLevel( f ) );
