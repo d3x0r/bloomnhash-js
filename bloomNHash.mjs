@@ -781,16 +781,19 @@ BloomNHash.hook = async function(storage ) {
 			let d = 1;
 			full = hash.used.getBit( entryIndex >> 1 );
 			while( 1 ) {
-
 				const offset = hash.keys[entryIndex];
 				// if entry is in use....
 				if( mustLeftEnt || offset ) {
 					// compare the keys.
 					if( d && offset ) {
-						// mustLeftEnt ? -1 : 
+						// mustLeftEnt ? -1 :
 						d = key.length - offset.length;
 						if( d == 0 ) {
-							d = key.localeCompare( offset );
+							if( ignoreCase )
+								d = key.localeCompare( offset, "en", {sensitivity:'base'} );
+							else
+								d = key.localeCompare( offset );
+
 							if( d == 0 ) {
 								// duplicate already found in tree, use existing entry.
 								result.entryIndex = entryIndex;

@@ -21,6 +21,7 @@ This implementation is async(promise based).
 |(constructor) | (<optional storage>) | hash | An optional object storage instance can be passed to the constructor. |
 |get| (string) | object | Returns a promise which resolves with the object stored in the hash at the specified string. |
 |set| (string,object) | -none- | Returns a promise which resolves when the specified object is setat the specified string.  It's just a completion event. |
+|caseInsensitive| set/get | bool | sets comparisons to case insensitive ('en', 'base') |
 |delete| (string) | remove a reference from the tree |
 |store| () | Promise( id ) | Store returns a promise that resolves to the object storage ID of the stored hash block.  This unique identifier will need to be used to recover this hash tree.  |
 
@@ -92,7 +93,9 @@ async function init()
 
 
 ## Changelog
-- 1.0.2(in progress)
+- 1.0.3(in progress)
+- 1.0.2
+  - add `caseInsensitive` setting.
 - 1.0.1
   - Bitreader object storage was missing (added).
   - Track relation between blocks and their root better
