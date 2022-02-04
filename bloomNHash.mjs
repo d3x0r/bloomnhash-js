@@ -57,7 +57,7 @@ class hashBlock{
 		//console.trace( "Recovering root...", this );
 		this.#root = v;
 		if( this.#rootSet ) { this.#rootSet( v ); this.#rootSet = null; this.#rootWait = null }
-				
+		//console.log( "set root?", v.storage );
 		this.used.hook( v.storage );
 	}
 	getStorage() { return this.#root.storage }
@@ -82,7 +82,7 @@ class hashBlock{
 			this.entries.push(null);
 			this.keys.push(null);
 		}
-		if( root ) {
+		if( root && root.storage ) {
 			this.used.hook( root.storage );
 			if( "undefined" !== typeof parent && root.storage ) {
 				// only if created with a 'parent' - not when revived...
@@ -197,6 +197,7 @@ get caseInsensitive() {
 }
 
 get ( key ) {
+	//console.log( "Getting:", key );
 	if( "number" === typeof key ) key = '' + key;
 	if( getting ) {
 		_debug_lookup && console.log( "Getting is still set, delay." );
@@ -284,6 +285,7 @@ get ( key ) {
 }
 
 async set( key, val ) {
+//	console.log( "setting:", key, val );
 	if( "number" === typeof key ) key = '' + key;
 	if( this.root instanceof Promise ) {
 		//console.log( "This root has to load still...", this.root );
@@ -384,6 +386,7 @@ function decodeHash( field, val ) {
 }
 
 BloomNHash.hook = async function(storage ) {
+	//console.log( "hook?", storage );
 	nextStorage = storage;
 	if( !storages.find( s=>s===storage ) ) {
 		BitReader.hook(storage);
