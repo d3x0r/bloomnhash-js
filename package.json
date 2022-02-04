@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/d3x0r/BloomNHash.git"
+    "url": "git+https://github.com/d3x0r/BloomNHash-js"
   },
   "keywords": [
     "hash"
