@@ -63,7 +63,7 @@ for( var z = 0; z < outerLoop; z++ ) {
 	for( n = 0; n < innerLoop; n++ ) {
 		let val = await hash.get( keys[n] );
 	        if( val != n ) {
-			console.log( util.format( "2LOOKUP Key-data mismatch!", n, val ) );
+			console.log( util.format( "2LOOKUP Key-data mismatch!", n, keys[n], val ) );
 		}
 	}
 

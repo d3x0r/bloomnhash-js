@@ -53,6 +53,9 @@ class hashBlock{
 	entries = [];
 	keys = [];
 
+	get root() { 
+		return this.#root;
+	}
 	set root(v) { 
 		//console.trace( "Recovering root...", this );
 		this.#root = v;
@@ -197,7 +200,7 @@ get caseInsensitive() {
 }
 
 get ( key ) {
-	//console.log( "Getting:", key );
+	_debug_lookup && console.log( "Getting:", key );
 	if( "number" === typeof key ) key = '' + key;
 	if( getting ) {
 		_debug_lookup && console.log( "Getting is still set, delay." );
@@ -214,7 +217,7 @@ get ( key ) {
 	//console.trace( "Get:", this, key );
 	const self = this;
 	const doit = function (thing){// thisless
-	//console.log( "Self Root:", this, thing, self, self.root );
+		_debug_lookup && console.log( "Self Root:", this, thing, self, self.root );
 		if( self.root instanceof Promise ) {
 			_debug_lookup && console.log( "Root is still mapping?" );
 			return self.root.then((root)=>{
@@ -285,7 +288,7 @@ get ( key ) {
 }
 
 async set( key, val ) {
-//	console.log( "setting:", key, val );
+	//console.log( "setting:", key, val );
 	if( "number" === typeof key ) key = '' + key;
 	if( this.root instanceof Promise ) {
 		//console.log( "This root has to load still...", this.root );
@@ -306,10 +309,11 @@ async set( key, val ) {
 	}
 
 	_debug_root && console.log( "This.root SHOULD be set...", this.root );
-
+	//console.log( "Insert is a promised thing.... this waits..." );
 	await this.root.insertFlowerHashEntry( key, result )
 
 	//console.log( "SET ENTRY:", key, val );
+	//dumpBlock( this.root );
 	result.hash.entries[result.entryIndex] = val;
 	if( this.#storage ) {
 		//console.log( "Save the hash I updated" );
@@ -421,8 +425,8 @@ BloomNHash.hook = async function(storage ) {
 				// sort first by key length... (really only compare same-length keys)
 				let d = key.length - entkey.length;
 				if( ( d == 0 ) 
-					&& (!ignoreCase && ( d = key.localeCompare(entkey ) == 0 ) )
-					&& ( ignoreCase && ( d = key.localeCompare(entkey, "en", { sensitivity:'base'} ) == 0 ) )
+					&& (((!ignoreCase) && ( (d = key.localeCompare(entkey )) == 0 ) )
+					   || ( ignoreCase && ( (d = key.localeCompare(entkey, "en", { sensitivity:'base'} )) == 0 ) ))
 				  ) {
 					result.entryIndex = curName;
 					result.entryMask = curMask;
@@ -443,7 +447,6 @@ BloomNHash.hook = async function(storage ) {
 				if( d > 0 ) curName |= curMask;
 				curMask >>= 1;
 			}
-			_debug_lookup && console.log( "failed to find in hash...", key, hash );
 			{
 				const hid = key.codePointAt(0) & HASH_MASK;
 				// follow converted hash blocks...
@@ -462,6 +465,8 @@ BloomNHash.hook = async function(storage ) {
 					continue;
 				}
 			}
+			_debug_lookup && console.log( "failed to find in hash...", key, hash );
+			//dumpBlock( hash.root.root );
 			result.hash = null;
 			return Promise.resolve( null );
 		}
@@ -796,7 +801,6 @@ BloomNHash.hook = async function(storage ) {
 								d = key.localeCompare( offset, "en", {sensitivity:'base'} );
 							else
 								d = key.localeCompare( offset );
-
 							if( d == 0 ) {
 								// duplicate already found in tree, use existing entry.
 								result.entryIndex = entryIndex;
@@ -1356,7 +1360,8 @@ BloomNHash.hook = async function(storage ) {
 	}
 
 	/*
-	 * deug ifnormation...
+	 * debug information...
+	*/
 	function dumpBlock_( hash, opt ) {
 		let buf = '';
 		let leader = '';
@@ -1560,13 +1565,13 @@ BloomNHash.hook = async function(storage ) {
 			}
 		}
 
-	//	for( n = 0; n < ( HASH_MASK + 1 ); n++ ) {
-	//		if( hash.nextBlock[n] ) dumpBlock_( hash.nextBlock[n], opt+1 );
-	//	}
+		for( n = 0; n < ( HASH_MASK + 1 ); n++ ) {
+			if( hash.nextBlock[n] ) dumpBlock_( hash.nextBlock[n], opt+1 );
+		}
 
 	}
 
 	function dumpBlock( hash ) {
 		dumpBlock_( hash, 1 );
 	}
-   */
+   
