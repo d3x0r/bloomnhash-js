@@ -97,6 +97,8 @@ async function init()
   - renamed bitreader; fixed missing general export
   - fix tracking hash root better
   - Fix case insensitive lookup.
+  - Fix missing load trigger for resulting hash values.
+  - Remove debug messages.
 - 1.0.2
   - add `caseInsensitive` setting.
 - 1.0.1
