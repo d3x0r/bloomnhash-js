@@ -18,7 +18,7 @@ class BitReader {
         }
 
         hook( storage ) {
-		console.log( "Strage Hook?", storage );
+		//console.log( "Storage Hook?", storage );
                 if( !storages.find( s=>s===storage ) ) {
                         storage.addEncoders( [ { tag:"btr", p:BitReader, f:this.encode } ] );
                         storage.addDecoders( [ { tag:"btr", p:BitReader, f:this.decode } ] );
