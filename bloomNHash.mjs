@@ -435,8 +435,10 @@ BloomNHash.hook = async function(storage ) {
 						_debug_lookup && console.log( "Resulting with promise to map the entry" );
 					if( !root ) console.trace( "Why is root missing?" );
 						const result = root.storage.map( hash, { depth:-1, paths:[ ["entries", curName] ] } ).then( (hash)=>{
-							_debug_lookup && console.log( "This should be the value in the entry...", key );							
-							return hash.entries[curName];//lookupFlowerHashEntry( hash, key, result );
+							const entry = hash.entries[curName];
+							if( entry instanceof Promise ) return root.storage.map( entry );
+							_debug_lookup && console.log( "This should be the value in the entry...", key, hash?.entries[curName] );
+							return entry;
 						} );
 						return result;
 					}
