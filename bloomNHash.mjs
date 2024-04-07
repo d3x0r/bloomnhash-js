@@ -66,8 +66,8 @@ class hashBlock{
 	getStorage() { return this.#root.storage }
 
 	constructor( parent, root ){
-		if( !root )
-			console.trace( "Created iwthout root?", root )		
+		//if( !root )
+			//console.trace( "Created iwthout root?", root )		
         	this.#root = root;
 		var n;
 		_debug_reload && console.log( "New Hash block - should get a ROOT ------------ ", parent, root );
