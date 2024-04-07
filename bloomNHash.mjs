@@ -66,8 +66,8 @@ class hashBlock{
 	getStorage() { return this.#root.storage }
 
 	constructor( parent, root ){
-		//if( !root )
-		//	console.trace( "Created iwthout root?", root )		
+		if( !root )
+			console.trace( "Created iwthout root?", root )		
         	this.#root = root;
 		var n;
 		_debug_reload && console.log( "New Hash block - should get a ROOT ------------ ", parent, root );
@@ -350,7 +350,7 @@ fromString (field,val){
 					val.root = _this;
 					return val;
 				} );
-			}
+			} else if( val instanceof hashBlock ) val.root = _this;
 		}
 		return val;
 	}
@@ -404,6 +404,7 @@ BloomNHash.hook = async function(storage ) {
 
 	// returns pointr to user data value
 	function lookupFlowerHashEntry( root, hash, key, result, ignoreCase ) {
+		//console.log( "Lookup:", key );
 		_debug_lookup && console.log( "Actually doing lookup; otherwise how did it resolve already?", key );
 		if( "number" === typeof key ) 
 			throw new Error( "Invalid key type:"+typeof(key)+":"+key );//key = '' + key;
@@ -421,9 +422,13 @@ BloomNHash.hook = async function(storage ) {
 			while( curMask )
 			{
 				const entkey=hash.keys[curName];
-				if(!entkey)  break; // no more entries to check.
+				if(!entkey)  {
+					//console.log( "no more keys....");
+					break; // no more entries to check.
+				}
 				// sort first by key length... (really only compare same-length keys)
 				let d = key.length - entkey.length;
+				//console.log( "is:", key, entkey );
 				if( ( d == 0 ) 
 					&& (((!ignoreCase) && ( (d = key.localeCompare(entkey )) == 0 ) )
 					   || ( ignoreCase && ( (d = key.localeCompare(entkey, "en", { sensitivity:'base'} )) == 0 ) ))
