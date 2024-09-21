@@ -98,7 +98,7 @@ class hashBlock{
 		if( !this.#root ) await this.#rootWait;
 		return insertFlowerHashEntry( this.#root, this, key, result, this.#root.caseInsensitive );
 	}
-         
+
 	async lookupFlowerHashEntry ( key, result, ignoreCase ) {
 		if( !this.#root ) await this.#rootWait;
 		return lookupFlowerHashEntry( this.#root, this, key, result, this.#root.caseInsensitive );
@@ -331,7 +331,13 @@ async set( key, val ) {
 
 delete( key ) {
 	if( !this.root ) return;
-	return this.root.DeleteFlowerHashEntry( this.root, key, val );
+	if( this.root instanceof Promise )
+		return this.root.then( root=>{
+			root.DeleteFlowerHashEntry( key );
+		}); 
+	else {
+		this.root.DeleteFlowerHashEntry( key );
+	}
 }
 
 fromString (field,val){
@@ -1215,6 +1221,7 @@ BloomNHash.hook = async function(storage ) {
 
 	// pull one of the nodes below me into this spot.
 	function bootstrap( hash, entryIndex, entryMask ) {
+		// sorry I didn't mean to make these cryptic...
 		var c1, c2 = 0, c3;
 		var cMask;
 		if( entryMask > 1 ) {
@@ -1290,9 +1297,9 @@ BloomNHash.hook = async function(storage ) {
 	function DeleteFlowerHashEntry( root, hash, key )
 	{
 		const resultEx = {};
-		const t = lookupFlowerHashEntry( root, hash.hash, key, resultEx, root.caseInsensitive );
+		const t = lookupFlowerHashEntry( root, hash, key, resultEx, root.caseInsensitive );
 		if( t ) {
-			deleteFlowerHashEntry( hash.hash, resultEx.entryIndex, resultEx.entryMask );
+			deleteFlowerHashEntry( hash, resultEx.entryIndex, resultEx.entryMask );
 		}
 	}
 
